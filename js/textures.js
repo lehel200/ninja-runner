@@ -269,6 +269,16 @@ const Textures = {
       px(ctx, 2, 2, 2, 2, '#ff8a80');
     });
 
+    // kék szív: skill-pickup
+    this.makeTex(scene, 'heart_blue', 12, 11, (ctx) => {
+      px(ctx, 1, 1, 4, 3, '#42a5f5'); px(ctx, 7, 1, 4, 3, '#42a5f5');
+      px(ctx, 0, 2, 12, 4, '#42a5f5');
+      px(ctx, 2, 6, 8, 2, '#1e88e5');
+      px(ctx, 4, 8, 4, 2, '#1e88e5');
+      px(ctx, 5, 10, 2, 1, '#1e88e5');
+      px(ctx, 2, 2, 2, 2, '#90caf9');
+    });
+
     // kardsuhintás-ív effekt
     this.makeTex(scene, 'slash_arc', 24, 24, (ctx) => {
       ctx.strokeStyle = 'rgba(255,255,255,0.9)';

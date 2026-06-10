@@ -43,6 +43,14 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackZone.body.enable = false;
   }
 
+  // kék szív skillek szorzói
+  get skills() {
+    return this.scene.skills || { speed: 0, range: 0, jump: 0 };
+  }
+  get speedMul() { return 1 + 0.15 * this.skills.speed; }
+  get jumpMul() { return 1 + 0.12 * this.skills.jump; }
+  get rangeMul() { return 1 + 0.2 * this.skills.range; }
+
   update(dt) {
     if (this.dead) return;
     const body = this.body;
@@ -64,10 +72,10 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     // vízszintes mozgás (falugrás után rövid zár)
     if (this.controlLock <= 0) {
       if (left && !right) {
-        body.setVelocityX(-Player.SPEED);
+        body.setVelocityX(-Player.SPEED * this.speedMul);
         this.facing = -1;
       } else if (right && !left) {
-        body.setVelocityX(Player.SPEED);
+        body.setVelocityX(Player.SPEED * this.speedMul);
         this.facing = 1;
       } else {
         body.setVelocityX(onGround ? 0 : body.velocity.x * 0.96);
@@ -91,7 +99,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     // ugrás: talajról (coyote) vagy falról
     if (this.bufferTimer > 0) {
       if (this.wallSliding) {
-        body.setVelocityY(-Player.WALL_JUMP_Y);
+        body.setVelocityY(-Player.WALL_JUMP_Y * this.jumpMul);
         body.setVelocityX(-wallDir * Player.WALL_JUMP_X);
         this.facing = -wallDir;
         this.controlLock = 0.16;
@@ -99,7 +107,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
         SFX.wallJump();
         this.scene.dust(this.x + wallDir * 14, this.y, 6);
       } else if (this.coyoteTimer > 0) {
-        body.setVelocityY(-Player.JUMP_VEL);
+        body.setVelocityY(-Player.JUMP_VEL * this.jumpMul);
         this.coyoteTimer = 0;
         this.bufferTimer = 0;
         SFX.jump();
@@ -126,7 +134,9 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     const attacking = this.attackTimer > 0;
     this.attackZone.body.enable = attacking;
     if (attacking) {
-      this.attackZone.setPosition(this.x + this.facing * 50, this.y - 2);
+      const r = this.rangeMul;
+      this.attackZone.body.setSize(66 * r, 56);
+      this.attackZone.setPosition(this.x + this.facing * 50 * r, this.y - 2);
     }
 
     // landolás: por (a sprite scale-jét nem tweeneljük — az átméretezné a fizikai testet is)

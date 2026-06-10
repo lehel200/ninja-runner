@@ -9,6 +9,8 @@ class GameScene extends Phaser.Scene {
     this.kills = 0;
     this.dead = false;
     this.record = parseFloat(localStorage.getItem('ninja_record_time') || '0');
+    this.skills = { speed: 0, range: 0, jump: 0 };   // kék szív skillek, max 3 szint
+    this.blueCooldown = 0;                           // kék szív drop cooldown (mp)
 
     // parallax háttér
     // világ-objektumként követik a kamerát (zoom-kompatibilis parallax)
@@ -46,10 +48,17 @@ class GameScene extends Phaser.Scene {
       }
     });
     this.physics.add.overlap(this.player, this.pickups, (p, h) => {
+      const isBlue = h.isBlue;
       h.destroy();
-      this.player.heal(20);
       SFX.pickup();
-      this.floatText(this.player.x, this.player.y - 40, '+20', '#7CFC8a');
+      if (isBlue) {
+        // skill-választó: játék megáll, panel jön
+        this.scene.pause();
+        this.scene.launch('SkillChoice');
+      } else {
+        this.player.heal(20);
+        this.floatText(this.player.x, this.player.y - 40, '+20', '#7CFC8a');
+      }
     });
 
     this.spawner = new Spawner(this);
@@ -89,10 +98,11 @@ class GameScene extends Phaser.Scene {
   }
 
   slashEffect(player) {
-    const arc = this.add.image(player.x + player.facing * 44, player.y - 2, 'slash_arc')
-      .setScale(2.4).setDepth(11).setFlipX(player.facing === -1).setAlpha(0.9);
+    const r = 1 + 0.2 * this.skills.range;
+    const arc = this.add.image(player.x + player.facing * 44 * r, player.y - 2, 'slash_arc')
+      .setScale(2.4 * r).setDepth(11).setFlipX(player.facing === -1).setAlpha(0.9);
     this.tweens.add({
-      targets: arc, alpha: 0, scaleX: 3.2, scaleY: 3.2,
+      targets: arc, alpha: 0, scaleX: 3.2 * r, scaleY: 3.2 * r,
       duration: 160, onComplete: () => arc.destroy()
     });
   }
@@ -146,19 +156,29 @@ class GameScene extends Phaser.Scene {
     this.bloodEmitter.setParticleTint(tints[enemy.type] || 0xffffff);
     this.bloodEmitter.explode(14, enemy.x, enemy.y);
 
-    // 12% eséllyel élet-pickup
-    if (Math.random() < 0.12) {
-      const heart = this.pickups.create(enemy.x, enemy.y - 10, 'heart');
-      heart.setScale(2).setDepth(8);
-      heart.setVelocity(Phaser.Math.Between(-60, 60), -250);
-      heart.setBounce(0.4);
-      this.tweens.add({
-        targets: heart, alpha: 0.2, duration: 200,
-        delay: 6000, repeat: 8, yoyo: true,
-        onComplete: () => heart.destroy()
-      });
+    // kék szív (skill): 8% esély, 60s cooldown, csak ha van fejleszthető skill
+    const hasUpgradable = Object.values(this.skills).some(lvl => lvl < 3);
+    if (this.blueCooldown <= 0 && hasUpgradable && Math.random() < 0.08) {
+      this.blueCooldown = 60;
+      this.dropHeart(enemy.x, enemy.y, true);
+    } else if (Math.random() < 0.12) {
+      // 12% eséllyel élet-pickup
+      this.dropHeart(enemy.x, enemy.y, false);
     }
     enemy.destroy();
+  }
+
+  dropHeart(x, y, isBlue) {
+    const heart = this.pickups.create(x, y - 10, isBlue ? 'heart_blue' : 'heart');
+    heart.isBlue = isBlue;
+    heart.setScale(2).setDepth(8);
+    heart.setVelocity(Phaser.Math.Between(-60, 60), -250);
+    heart.setBounce(0.4);
+    this.tweens.add({
+      targets: heart, alpha: 0.2, duration: 200,
+      delay: 6000, repeat: 8, yoyo: true,
+      onComplete: () => heart.destroy()
+    });
   }
 
   throwShuriken(thrower, player) {
@@ -201,6 +221,7 @@ class GameScene extends Phaser.Scene {
 
     if (!this.dead) {
       this.elapsed += dt;
+      this.blueCooldown = Math.max(0, this.blueCooldown - dt);
       this.player.update(dt);
       this.gen.update();
       this.spawner.update(dt, this.elapsed);

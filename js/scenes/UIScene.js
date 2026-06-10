@@ -16,6 +16,9 @@ class UIScene extends Phaser.Scene {
     this.timeText = this.add.text(960, 34, '0:00.0', { ...style, fontSize: '50px' }).setOrigin(0.5, 0);
     this.recordText = this.add.text(1880, 38, '', { ...style, color: '#ffd54f' }).setOrigin(1, 0);
     this.killText = this.add.text(40, 100, '⚔ 0', style);
+    this.skillText = this.add.text(40, 156, '', {
+      fontFamily: 'monospace', fontSize: '30px', color: '#90caf9', fontStyle: 'bold'
+    });
   }
 
   fmt(t) {
@@ -47,6 +50,16 @@ class UIScene extends Phaser.Scene {
     this.hpBar.fillColor = ratio > 0.5 ? 0x43a047 : ratio > 0.25 ? 0xfb8c00 : 0xe53935;
     this.timeText.setText(this.fmt(gs.elapsed));
     this.killText.setText(`⚔ ${gs.kills}`);
+
+    // megszerzett skillek szintjei
+    if (gs.skills) {
+      const roman = ['', 'I', 'II', 'III'];
+      const parts = [];
+      if (gs.skills.speed) parts.push(`🏃 ${roman[gs.skills.speed]}`);
+      if (gs.skills.range) parts.push(`🗡 ${roman[gs.skills.range]}`);
+      if (gs.skills.jump) parts.push(`⬆ ${roman[gs.skills.jump]}`);
+      this.skillText.setText(parts.join('   '));
+    }
 
     if (!this.recordBeaten && gs.record > 0 && gs.elapsed > gs.record) {
       this.recordBeaten = true;
