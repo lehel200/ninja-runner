@@ -9,15 +9,15 @@ class GameScene extends Phaser.Scene {
     this.kills = 0;
     this.dead = false;
     this.record = parseFloat(localStorage.getItem('ninja_record_time') || '0');
-    this.recordBeaten = false;
 
     // parallax háttér
+    // világ-objektumként követik a kamerát (zoom-kompatibilis parallax)
     this.bgFar = this.add.tileSprite(0, 0, 960, 540, 'bg_far')
-      .setOrigin(0).setScrollFactor(0).setTileScale(2).setDepth(0);
+      .setOrigin(0).setTileScale(2).setDepth(0);
     this.bgMid = this.add.tileSprite(0, 0, 960, 540, 'bg_mid')
-      .setOrigin(0).setScrollFactor(0).setTileScale(2).setDepth(1);
+      .setOrigin(0).setTileScale(2).setDepth(1);
     this.bgNear = this.add.tileSprite(0, 0, 960, 540, 'bg_near')
-      .setOrigin(0).setScrollFactor(0).setTileScale(2).setDepth(2);
+      .setOrigin(0).setTileScale(2).setDepth(2);
 
     // világ
     this.gen = new ChunkGenerator(this);
@@ -54,8 +54,9 @@ class GameScene extends Phaser.Scene {
 
     this.spawner = new Spawner(this);
 
-    // kamera
+    // kamera: zoom 2 → a 960×540-es világ tölti ki az 1920×1080-as vásznat
     const cam = this.cameras.main;
+    cam.setZoom(2);
     cam.setBounds(-200, -260, 1e9, 1060);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setFollowOffset(-140, 40);
@@ -78,7 +79,8 @@ class GameScene extends Phaser.Scene {
       emitting: false
     }).setDepth(9);
 
-    this.createHUD();
+    // éles feliratok: HUD külön, natív felbontású jeleneten
+    this.scene.launch('UI');
   }
 
   // ----- effektek -----
@@ -101,13 +103,8 @@ class GameScene extends Phaser.Scene {
   }
 
   floatText(x, y, str, color) {
-    const t = this.add.text(x, y, str, {
-      fontFamily: 'monospace', fontSize: '18px', color, fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(20);
-    this.tweens.add({
-      targets: t, y: y - 40, alpha: 0, duration: 700,
-      onComplete: () => t.destroy()
-    });
+    const ui = this.scene.get('UI');
+    if (ui && ui.scene.isActive()) ui.floatTextWorld(x, y, str, color);
   }
 
   // ----- harc -----
@@ -162,7 +159,6 @@ class GameScene extends Phaser.Scene {
       });
     }
     enemy.destroy();
-    this.killText.setText(`⚔ ${this.kills}`);
   }
 
   throwShuriken(thrower, player) {
@@ -173,51 +169,6 @@ class GameScene extends Phaser.Scene {
     this.physics.velocityFromRotation(angle, 280, s.body.velocity);
     this.tweens.add({ targets: s, angle: 360, duration: 400, repeat: -1 });
     SFX.noise({ dur: 0.06, vol: 0.08, filter: 4000 });
-  }
-
-  // ----- HUD -----
-  createHUD() {
-    this.hpBarBg = this.add.rectangle(20, 20, 204, 22, 0x10131f)
-      .setOrigin(0).setScrollFactor(0).setDepth(30).setStrokeStyle(2, 0x8899aa);
-    this.hpBar = this.add.rectangle(22, 22, 200, 18, 0x43a047)
-      .setOrigin(0).setScrollFactor(0).setDepth(31);
-
-    const style = { fontFamily: 'monospace', fontSize: '20px', color: '#ffffff', fontStyle: 'bold' };
-    this.timeText = this.add.text(480, 18, '0:00.0', { ...style, fontSize: '26px' })
-      .setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);
-    this.recordText = this.add.text(940, 18, `REKORD ${this.fmt(this.record)}`,
-      { ...style, color: '#ffd54f' })
-      .setOrigin(1, 0).setScrollFactor(0).setDepth(30);
-    this.killText = this.add.text(20, 50, '⚔ 0', style)
-      .setScrollFactor(0).setDepth(30);
-  }
-
-  fmt(t) {
-    const m = Math.floor(t / 60);
-    const s = t - m * 60;
-    return `${m}:${s < 10 ? '0' : ''}${s.toFixed(1)}`;
-  }
-
-  updateHUD() {
-    const ratio = this.player.hp / Player.MAX_HP;
-    this.hpBar.width = 200 * ratio;
-    this.hpBar.fillColor = ratio > 0.5 ? 0x43a047 : ratio > 0.25 ? 0xfb8c00 : 0xe53935;
-    this.timeText.setText(this.fmt(this.elapsed));
-
-    if (!this.recordBeaten && this.record > 0 && this.elapsed > this.record) {
-      this.recordBeaten = true;
-      SFX.newRecord();
-      const t = this.add.text(480, 120, 'ÚJ REKORD!', {
-        fontFamily: 'monospace', fontSize: '40px', color: '#ffd54f', fontStyle: 'bold'
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(40);
-      this.tweens.add({
-        targets: t, scale: 1.4, alpha: 0, duration: 1500,
-        ease: 'Cubic.easeOut', onComplete: () => t.destroy()
-      });
-    }
-    if (this.recordBeaten) {
-      this.recordText.setText(`REKORD ${this.fmt(this.elapsed)}`);
-    }
   }
 
   // ----- halál -----
@@ -234,6 +185,7 @@ class GameScene extends Phaser.Scene {
     }
 
     this.time.delayedCall(1200, () => {
+      this.scene.stop('UI');
       this.scene.start('GameOver', {
         time: finalTime,
         kills: this.kills,
@@ -272,15 +224,14 @@ class GameScene extends Phaser.Scene {
         this.player.hp = 0;
         this.player.die();
       }
-
-      this.updateHUD();
     }
 
-    // parallax
-    const sx = this.cameras.main.scrollX;
-    this.bgFar.tilePositionX = sx * 0.08;
-    this.bgMid.tilePositionX = sx * 0.22;
-    this.bgNear.tilePositionX = sx * 0.45;
+    // parallax: a háttér a kamera nézetét követi, textúra-eltolás adja a mélységet
+    const view = this.cameras.main.worldView;
+    [this.bgFar, this.bgMid, this.bgNear].forEach(bg => bg.setPosition(view.x, view.y));
+    this.bgFar.tilePositionX = view.x * 0.08;
+    this.bgMid.tilePositionX = view.x * 0.22;
+    this.bgNear.tilePositionX = view.x * 0.45;
 
     Keys.endFrame();
   }

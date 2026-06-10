@@ -10,13 +10,18 @@ class BootScene extends Phaser.Scene {
   }
 }
 
+// Belső felbontás 1920×1080: a játékvilágot zoom-2 kamera nagyítja (pixel art),
+// a feliratok natív felbontáson, élesen renderelődnek.
 const config = {
   type: Phaser.AUTO,
   parent: 'game',
-  width: 960,
-  height: 540,
-  pixelArt: true,
+  width: 1920,
+  height: 1080,
   backgroundColor: '#181030',
+  render: {
+    antialias: true,
+    roundPixels: true
+  },
   physics: {
     default: 'arcade',
     arcade: {
@@ -28,7 +33,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, MenuScene, GameScene, GameOverScene]
+  scene: [BootScene, MenuScene, GameScene, UIScene, GameOverScene]
 };
 
 window.game = new Phaser.Game(config);

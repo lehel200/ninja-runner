@@ -8,6 +8,8 @@ const Textures = {
     ctx.imageSmoothingEnabled = false;
     draw(ctx, w, h);
     canvas.refresh();
+    // pixel art: élsimítás nélküli nagyítás (a globális antialias a szövegnek kell)
+    canvas.setFilter(Phaser.Textures.FilterMode.NEAREST);
   },
 
   generateAll(scene) {
