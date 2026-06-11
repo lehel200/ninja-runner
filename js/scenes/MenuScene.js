@@ -25,10 +25,10 @@ class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.tweens.add({ targets: title, y: 280, duration: 1600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    const record = parseFloat(localStorage.getItem('ninja_record_time') || '0');
+    const record = parseInt(localStorage.getItem('ninja_record_kills') || '0', 10);
     const recStr = record > 0
-      ? `REKORD: ${this.fmt(record)}`
-      : 'Még nincs rekord — fuss!';
+      ? `REKORD: ${record} szörny`
+      : 'Még nincs rekord — kaszabolj!';
     this.add.text(960, 430, recStr, {
       fontFamily: 'monospace', fontSize: '48px', color: '#ffd54f', fontStyle: 'bold'
     }).setOrigin(0.5).setName('record');

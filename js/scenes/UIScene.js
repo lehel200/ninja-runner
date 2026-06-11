@@ -12,11 +12,16 @@ class UIScene extends Phaser.Scene {
       .setOrigin(0).setStrokeStyle(3, 0x8899aa);
     this.hpBar = this.add.rectangle(44, 44, 400, 36, 0x43a047).setOrigin(0);
 
+    // fehér pajzs-sáv a HP alatt; kerete a pajzs-szinttel hosszabbodik
+    this.shieldBarBg = this.add.rectangle(40, 92, 144, 44, 0x10131f)
+      .setOrigin(0).setStrokeStyle(3, 0xe8e2f5).setVisible(false);
+    this.shieldBar = this.add.rectangle(44, 96, 0, 36, 0xffffff).setOrigin(0);
+
     const style = { fontFamily: 'monospace', fontSize: '38px', color: '#ffffff', fontStyle: 'bold' };
     this.timeText = this.add.text(960, 34, '0:00.0', { ...style, fontSize: '50px' }).setOrigin(0.5, 0);
     this.recordText = this.add.text(1880, 38, '', { ...style, color: '#ffd54f' }).setOrigin(1, 0);
-    this.killText = this.add.text(40, 100, '⚔ 0', style);
-    this.skillText = this.add.text(40, 156, '', {
+    this.killText = this.add.text(40, 152, '⚔ 0', style);
+    this.skillText = this.add.text(40, 208, '', {
       fontFamily: 'monospace', fontSize: '30px', color: '#90caf9', fontStyle: 'bold'
     });
   }
@@ -51,6 +56,16 @@ class UIScene extends Phaser.Scene {
     this.timeText.setText(this.fmt(gs.elapsed));
     this.killText.setText(`⚔ ${gs.kills}`);
 
+    // pajzs-sáv: szintenként hosszabb keret, fehér kitöltés az aktuális pajzzsal
+    const shieldLvl = gs.skills ? gs.skills.shield : 0;
+    this.shieldBarBg.setVisible(shieldLvl > 0);
+    if (shieldLvl > 0) {
+      this.shieldBarBg.width = 136 * shieldLvl + 8;
+      this.shieldBar.width = 136 * shieldLvl * (gs.player.shield / gs.player.shieldCap);
+    } else {
+      this.shieldBar.width = 0;
+    }
+
     // megszerzett skillek szintjei
     if (gs.skills) {
       const roman = ['', 'I', 'II', 'III'];
@@ -58,10 +73,11 @@ class UIScene extends Phaser.Scene {
       if (gs.skills.speed) parts.push(`🏃 ${roman[gs.skills.speed]}`);
       if (gs.skills.range) parts.push(`🗡 ${roman[gs.skills.range]}`);
       if (gs.skills.jump) parts.push(`⬆ ${roman[gs.skills.jump]}`);
+      if (gs.skills.shield) parts.push(`🛡 ${roman[gs.skills.shield]}`);
       this.skillText.setText(parts.join('   '));
     }
 
-    if (!this.recordBeaten && gs.record > 0 && gs.elapsed > gs.record) {
+    if (!this.recordBeaten && gs.record > 0 && gs.kills > gs.record) {
       this.recordBeaten = true;
       SFX.newRecord();
       const t = this.add.text(960, 240, 'ÚJ REKORD!', {
@@ -73,6 +89,6 @@ class UIScene extends Phaser.Scene {
       });
     }
     this.recordText.setText(
-      `REKORD ${this.fmt(this.recordBeaten ? gs.elapsed : gs.record)}`);
+      `REKORD ⚔ ${this.recordBeaten ? gs.kills : gs.record}`);
   }
 }

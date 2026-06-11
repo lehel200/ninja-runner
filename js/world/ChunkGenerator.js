@@ -20,13 +20,35 @@ class ChunkGenerator {
     while (this.nextCol <= genUntil) {
       this.genColumn(this.nextCol++);
     }
-    // takarítás a kamera mögött
-    const cleanBefore = Math.floor((cam.scrollX - 360) / TILE);
+    // biztonsági takarítás messze a kamera mögött (az omlás végzi a fő törlést)
+    const cleanBefore = Math.floor((cam.scrollX - 900) / TILE);
     for (const [col, entry] of this.cols) {
       if (col < cleanBefore) {
         entry.tiles.forEach(t => t.destroy());
         this.cols.delete(col);
       }
+    }
+  }
+
+  // Omlás: az x-től balra eső oszlopok csempéi leszakadnak és lehullanak.
+  collapseTo(x) {
+    const limit = Math.floor(x / TILE);
+    for (const [col, entry] of this.cols) {
+      if (col >= limit) continue;
+      this.cols.delete(col);
+      entry.tiles.forEach(t => {
+        t.body.enable = false;
+        this.scene.tweens.add({
+          targets: t,
+          y: t.y + Phaser.Math.Between(300, 520),
+          angle: Phaser.Math.Between(-90, 90),
+          alpha: 0,
+          duration: Phaser.Math.Between(500, 800),
+          delay: Phaser.Math.Between(0, 150),
+          ease: 'Cubic.easeIn',
+          onComplete: () => t.destroy()
+        });
+      });
     }
   }
 

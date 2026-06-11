@@ -19,16 +19,16 @@ class GameOverScene extends Phaser.Scene {
 
     const { time, kills, record, newRecord } = this.result;
 
-    this.add.text(960, 430, `Túlélt idő:  ${this.fmt(time)}`, {
+    this.add.text(960, 430, `Levágott szörnyek:  ${kills}`, {
       fontFamily: 'monospace', fontSize: '56px', color: '#ffffff'
     }).setOrigin(0.5);
 
-    this.add.text(960, 520, `Levágott szörnyek:  ${kills}`, {
+    this.add.text(960, 520, `Túlélt idő:  ${this.fmt(time)}`, {
       fontFamily: 'monospace', fontSize: '44px', color: '#b9aed4'
     }).setOrigin(0.5);
 
     const recText = this.add.text(960, 630,
-      newRecord ? `★ ÚJ REKORD: ${this.fmt(record)} ★` : `Rekord: ${this.fmt(record)}`, {
+      newRecord ? `★ ÚJ REKORD: ${record} szörny ★` : `Rekord: ${record} szörny`, {
         fontFamily: 'monospace', fontSize: newRecord ? '60px' : '48px',
         color: '#ffd54f', fontStyle: 'bold'
       }).setOrigin(0.5);

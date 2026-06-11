@@ -8,9 +8,11 @@ class GameScene extends Phaser.Scene {
     this.elapsed = 0;
     this.kills = 0;
     this.dead = false;
-    this.record = parseFloat(localStorage.getItem('ninja_record_time') || '0');
-    this.skills = { speed: 0, range: 0, jump: 0 };   // kék szív skillek, max 3 szint
+    localStorage.removeItem('ninja_record_time');    // régi időrekord kivezetve
+    this.record = parseInt(localStorage.getItem('ninja_record_kills') || '0', 10);
+    this.skills = { speed: 0, range: 0, jump: 0, shield: 0 }; // kék szív skillek, max 3 szint
     this.blueCooldown = 0;                           // kék szív drop cooldown (mp)
+    this.collapseX = -400;                           // omlás-front éle (világ x)
 
     // parallax háttér
     // világ-objektumként követik a kamerát (zoom-kompatibilis parallax)
@@ -79,6 +81,23 @@ class GameScene extends Phaser.Scene {
       tint: 0xcbb89d,
       emitting: false
     }).setDepth(9);
+
+    // omlás-front vizuál: sötét fal + gradiens + felszálló por
+    this.collapseDark = this.add.rectangle(this.collapseX, 270, 2400, 1400, 0x0d0a1a)
+      .setOrigin(1, 0.5).setDepth(12);
+    this.collapseGrad = this.add.image(this.collapseX, 270, 'collapse_grad')
+      .setOrigin(0, 0.5).setDepth(12);
+    this.collapseGrad.setDisplaySize(160, 1400);
+    this.collapseEmitter = this.add.particles(this.collapseX, 270, 'px', {
+      speedY: { min: -140, max: -40 },
+      speedX: { min: -30, max: 30 },
+      scale: { start: 2.2, end: 0 },
+      lifespan: { min: 400, max: 900 },
+      tint: [0x3d2a54, 0x241a3e, 0x5b3a63],
+      frequency: 25,
+      quantity: 2,
+      emitZone: { type: 'random', source: new Phaser.Geom.Rectangle(-12, -270, 24, 540) }
+    }).setDepth(13);
 
     this.bloodEmitter = this.add.particles(0, 0, 'px', {
       speed: { min: 60, max: 220 },
@@ -159,7 +178,7 @@ class GameScene extends Phaser.Scene {
     // kék szív (skill): 8% esély, 60s cooldown, csak ha van fejleszthető skill
     const hasUpgradable = Object.values(this.skills).some(lvl => lvl < 3);
     if (this.blueCooldown <= 0 && hasUpgradable && Math.random() < 0.08) {
-      this.blueCooldown = 60;
+      this.blueCooldown = 20;
       this.dropHeart(enemy.x, enemy.y, true);
     } else if (Math.random() < 0.12) {
       // 12% eséllyel élet-pickup
@@ -199,9 +218,9 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(300, 0.01);
 
     const finalTime = this.elapsed;
-    const newRecord = finalTime > this.record;
+    const newRecord = this.kills > this.record;
     if (newRecord) {
-      localStorage.setItem('ninja_record_time', String(finalTime));
+      localStorage.setItem('ninja_record_kills', String(this.kills));
     }
 
     this.time.delayedCall(1200, () => {
@@ -209,7 +228,7 @@ class GameScene extends Phaser.Scene {
       this.scene.start('GameOver', {
         time: finalTime,
         kills: this.kills,
-        record: Math.max(this.record, finalTime),
+        record: Math.max(this.record, this.kills),
         newRecord
       });
     });
@@ -227,17 +246,40 @@ class GameScene extends Phaser.Scene {
       this.spawner.update(dt, this.elapsed);
       this.checkSwordHits();
 
-      // szörny AI + lemaradók törlése
+      // omlás-front: 4 mp türelem után indul, idővel gyorsul, gumiszalaggal követ
       const cam = this.cameras.main;
+      if (this.elapsed > 4) {
+        const speed = 130 + Math.min(this.elapsed, 300) * 0.3;
+        this.collapseX += speed * dt;
+        const minX = cam.scrollX - 700;
+        if (this.collapseX < minX) this.collapseX = minX;
+        this.gen.collapseTo(this.collapseX);
+
+        // elérte a játékost → azonnali halál
+        if (this.player.x < this.collapseX + 20) {
+          this.player.hp = 0;
+          this.player.die();
+        }
+        // feszültség-remegés ha közel a front
+        if (this.player.x - this.collapseX < 250) {
+          cam.shake(60, 0.002);
+        }
+      }
+
+      // szörny AI + lemaradók/elnyeltek törlése
+      const cullX = Math.max(cam.scrollX - 350, this.collapseX);
       [this.groundEnemies, this.airEnemies].forEach(group => {
         [...group.getChildren()].forEach(e => {
           if (!e.active) return;
           e.updateAI(dt, this.player);
-          if (e.x < cam.scrollX - 350 || e.y > 900) e.destroy();
+          if (e.x < cullX || e.y > 900) e.destroy();
         });
       });
       [...this.shurikens.getChildren()].forEach(s => {
-        if (s.active && (s.x < cam.scrollX - 100 || s.x > cam.scrollX + 1100 || s.y > 900)) s.destroy();
+        if (s.active && (s.x < this.collapseX || s.x < cam.scrollX - 100 || s.x > cam.scrollX + 1100 || s.y > 900)) s.destroy();
+      });
+      [...this.pickups.getChildren()].forEach(h => {
+        if (h.active && h.x < this.collapseX) h.destroy();
       });
 
       // leesés a pályáról
@@ -253,6 +295,11 @@ class GameScene extends Phaser.Scene {
     this.bgFar.tilePositionX = view.x * 0.08;
     this.bgMid.tilePositionX = view.x * 0.22;
     this.bgNear.tilePositionX = view.x * 0.45;
+
+    // omlás-front vizuál pozicionálás
+    this.collapseDark.setPosition(this.collapseX + 6, view.centerY);
+    this.collapseGrad.setPosition(this.collapseX - 6, view.centerY);
+    this.collapseEmitter.setPosition(this.collapseX - 4, view.centerY);
 
     Keys.endFrame();
   }

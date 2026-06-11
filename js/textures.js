@@ -279,6 +279,16 @@ const Textures = {
       px(ctx, 2, 2, 2, 2, '#90caf9');
     });
 
+    // omlás-front gradiens (balról sötét → jobbra átlátszó)
+    this.makeTex(scene, 'collapse_grad', 160, 270, (ctx, w, h) => {
+      const grad = ctx.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0, 'rgba(13,10,26,1)');
+      grad.addColorStop(0.55, 'rgba(36,26,62,0.85)');
+      grad.addColorStop(1, 'rgba(36,26,62,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    });
+
     // kardsuhintás-ív effekt
     this.makeTex(scene, 'slash_arc', 24, 24, (ctx) => {
       ctx.strokeStyle = 'rgba(255,255,255,0.9)';

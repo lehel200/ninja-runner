@@ -142,15 +142,16 @@ class Enemy extends Phaser.Physics.Arcade.Sprite {
 class Spawner {
   constructor(scene) {
     this.scene = scene;
-    this.timer = 1.6;
+    this.timer = 0.8;
   }
 
   update(dt, elapsed) {
     this.timer -= dt;
     if (this.timer <= 0) {
       this.spawn(elapsed);
-      // spawn-ráta: 2.4s-ról 0.5s-ig csökken
-      this.timer = Math.max(0.5, 2.4 - elapsed * 0.018);
+      // spawn-ráta: 60/perc-ről indul, +20/perc percenként, plafon 200/perc
+      const rate = Math.min(200, 60 + 20 * (elapsed / 60));
+      this.timer = 60 / rate;
     }
   }
 

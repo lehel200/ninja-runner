@@ -23,6 +23,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(10);
 
     this.hp = Player.MAX_HP;
+    this.shield = 0;
     this.facing = 1;
     this.coyoteTimer = 0;
     this.bufferTimer = 0;
@@ -50,6 +51,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
   get speedMul() { return 1 + 0.15 * this.skills.speed; }
   get jumpMul() { return 1 + 0.12 * this.skills.jump; }
   get rangeMul() { return 1 + 0.2 * this.skills.range; }
+  get shieldCap() { return 25 * (this.skills.shield || 0); }
 
   update(dt) {
     if (this.dead) return;
@@ -174,21 +176,33 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
   takeDamage(amount, fromX) {
     if (this.dead || this.invulnTimer > 0) return false;
-    this.hp = Math.max(0, this.hp - amount);
+    // pajzs nyeli el először a sebzést
+    let dmg = amount;
+    const absorbed = Math.min(this.shield, dmg);
+    this.shield -= absorbed;
+    dmg -= absorbed;
+    this.hp = Math.max(0, this.hp - dmg);
     this.invulnTimer = Player.INVULN_TIME;
     const dir = this.x < fromX ? -1 : 1;
     this.body.setVelocity(dir * 260, -300);
     this.controlLock = 0.2;
     SFX.hit();
     this.scene.cameras.main.shake(120, 0.006);
-    this.setTintFill(0xffffff);
+    this.setTintFill(absorbed > 0 ? 0x90caf9 : 0xffffff);
     this.scene.time.delayedCall(80, () => this.clearTint());
     if (this.hp <= 0) this.die();
     return true;
   }
 
   heal(amount) {
-    this.hp = Math.min(Player.MAX_HP, this.hp + amount);
+    const room = Player.MAX_HP - this.hp;
+    const toHp = Math.min(amount, room);
+    this.hp += toHp;
+    // túlcsorduló gyógyítás pajzsba (ha van pajzs skill)
+    const rest = amount - toHp;
+    if (rest > 0 && this.shieldCap > 0) {
+      this.shield = Math.min(this.shieldCap, this.shield + rest);
+    }
   }
 
   die() {
