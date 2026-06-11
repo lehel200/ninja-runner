@@ -60,7 +60,12 @@ class UIScene extends Phaser.Scene {
     const shieldLvl = gs.skills ? gs.skills.shield : 0;
     this.shieldBarBg.setVisible(shieldLvl > 0);
     if (shieldLvl > 0) {
-      this.shieldBarBg.width = 136 * shieldLvl + 8;
+      // setSize kell: a sima width-állítás nem rajzolja újra a keretet (stroke)
+      if (this.lastShieldLvl !== shieldLvl) {
+        this.lastShieldLvl = shieldLvl;
+        this.shieldBarBg.setSize(136 * shieldLvl + 8, 44);
+        this.shieldBarBg.setStrokeStyle(3, 0xe8e2f5);
+      }
       this.shieldBar.width = 136 * shieldLvl * (gs.player.shield / gs.player.shieldCap);
     } else {
       this.shieldBar.width = 0;
