@@ -222,6 +222,8 @@ class GameScene extends Phaser.Scene {
     if (newRecord) {
       localStorage.setItem('ninja_record_kills', String(this.kills));
     }
+    // online ranglista (csak bejelentkezve, fire-and-forget)
+    Supa.submitScore(this.kills, finalTime);
 
     this.time.delayedCall(1200, () => {
       this.scene.stop('UI');

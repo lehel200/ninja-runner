@@ -33,7 +33,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, MenuScene, GameScene, UIScene, SkillChoiceScene, GameOverScene]
+  scene: [BootScene, MenuScene, GameScene, UIScene, SkillChoiceScene, LeaderboardScene, GameOverScene]
 };
 
 window.game = new Phaser.Game(config);

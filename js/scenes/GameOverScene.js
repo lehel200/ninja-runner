@@ -36,6 +36,20 @@ class GameOverScene extends Phaser.Scene {
       this.tweens.add({ targets: recText, scale: 1.15, duration: 500, yoyo: true, repeat: -1 });
     }
 
+    // világranglista helyezés / login hint
+    if (Supa.isLoggedIn()) {
+      const rankText = this.add.text(960, 700, 'Világranglista: …', {
+        fontFamily: 'monospace', fontSize: '34px', color: '#90caf9', fontStyle: 'bold'
+      }).setOrigin(0.5);
+      Supa.rankOf(kills).then(rank => {
+        if (rankText.active && rank) rankText.setText(`Világranglista: #${rank}`);
+      });
+    } else {
+      this.add.text(960, 700, 'Jelentkezz be a menüben, hogy felkerülj a ranglistára!', {
+        fontFamily: 'monospace', fontSize: '26px', color: '#b9aed4'
+      }).setOrigin(0.5);
+    }
+
     const retry = this.add.text(960, 800, '↻  ÚJRA  (ENTER)', {
       fontFamily: 'monospace', fontSize: '52px', color: '#ffffff', fontStyle: 'bold',
       backgroundColor: '#c63f37', padding: { x: 40, y: 20 }

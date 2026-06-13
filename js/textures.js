@@ -1,6 +1,14 @@
 // Pixel art textúrák generálása kódból, induláskor. Nincs külső asset.
 const Textures = {
 
+  // hex szín sötétítése (avatár árnyalathoz)
+  shade(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const f = (v) => Math.max(0, Math.floor(v * 0.6));
+    return '#' + [f(n >> 16 & 255), f(n >> 8 & 255), f(n & 255)]
+      .map(v => v.toString(16).padStart(2, '0')).join('');
+  },
+
   makeTex(scene, key, w, h, draw) {
     if (scene.textures.exists(key)) return;
     const canvas = scene.textures.createCanvas(key, w, h);
@@ -277,6 +285,30 @@ const Textures = {
       px(ctx, 4, 8, 4, 2, '#1e88e5');
       px(ctx, 5, 10, 2, 1, '#1e88e5');
       px(ctx, 2, 2, 2, 2, '#90caf9');
+    });
+
+    // 10 pixel-ninja avatár fej (16×16), különböző kapucni/szem színekkel
+    const AVATAR_PALETTES = [
+      { hood: '#26345f', eye: '#10131f' }, // klasszikus kék
+      { hood: '#7b1f1f', eye: '#10131f' }, // vörös
+      { hood: '#1b5e20', eye: '#10131f' }, // zöld
+      { hood: '#4a148c', eye: '#ffd54f' }, // lila, arany szem
+      { hood: '#37474f', eye: '#b71c1c' }, // szürke, vörös szem
+      { hood: '#e65100', eye: '#10131f' }, // narancs
+      { hood: '#880e4f', eye: '#10131f' }, // pink
+      { hood: '#01579b', eye: '#7CFC8a' }, // világoskék, zöld szem
+      { hood: '#3e2723', eye: '#ffd54f' }, // barna, arany szem
+      { hood: '#10131f', eye: '#e53935' }  // fekete, vörös szem
+    ];
+    AVATAR_PALETTES.forEach((pal, i) => {
+      this.makeTex(scene, `avatar_${i}`, 16, 16, (ctx) => {
+        px(ctx, 2, 2, 12, 12, pal.hood);
+        px(ctx, 2, 2, 12, 2, this.shade(pal.hood));
+        px(ctx, 3, 6, 10, 4, '#e8b88a');           // arc-sáv
+        px(ctx, 5, 7, 2, 2, pal.eye);
+        px(ctx, 10, 7, 2, 2, pal.eye);
+        px(ctx, 2, 12, 12, 2, this.shade(pal.hood)); // áll-takarás
+      });
     });
 
     // omlás-front gradiens (balról sötét → jobbra átlátszó)

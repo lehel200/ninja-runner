@@ -5,17 +5,209 @@ class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    this.view = 'main'; // 'main' | 'controls'
+    this.view = 'main'; // 'main' | 'controls' | 'avatar'
     this.add.tileSprite(0, 0, 1920, 1080, 'bg_far').setOrigin(0).setTileScale(4);
     this.add.tileSprite(0, 0, 1920, 1080, 'bg_mid').setOrigin(0).setTileScale(4);
     this.add.tileSprite(0, 0, 1920, 1080, 'bg_near').setOrigin(0).setTileScale(4);
 
     this.controlsGroup = this.add.container(0, 0).setVisible(false);
+    this.authGroup = this.add.container(0, 0);
+    this.podiumGroup = this.add.container(0, 0);
+    this.avatarGroup = this.add.container(0, 0).setVisible(false);
 
     this.buildMain();
     this.buildControls();
+    this.buildAuth();
+    this.buildPodium();
+
+    // auth állapotváltozásra (login redirect után is) frissül a UI
+    Supa.onChange = () => {
+      if (this.scene.isActive('Menu')) {
+        this.buildAuth();
+        this.buildPodium();
+      }
+    };
 
     this.input.on('pointerdown', () => SFX.ensure());
+
+    // a controls/avatar panel a dobogó fölé kerüljön
+    this.children.bringToTop(this.controlsGroup);
+    this.children.bringToTop(this.avatarGroup);
+  }
+
+  // ----- bejelentkezés sáv (jobb felső sarok) -----
+  buildAuth() {
+    this.authGroup.removeAll(true);
+    const g = this.authGroup;
+
+    if (Supa.isLoggedIn() && Supa.profile) {
+      const p = Supa.profile;
+      const av = this.add.image(1500, 60, 'avatar_0').setDisplaySize(64, 64);
+      Avatars.ensure(this, { ...p, user_id: p.id }, (key) => {
+        if (av.active) av.setTexture(key).setDisplaySize(64, 64);
+      });
+      g.add(av);
+      g.add(this.add.text(1545, 60, p.display_name.slice(0, 16), {
+        fontFamily: 'monospace', fontSize: '28px', color: '#ffffff', fontStyle: 'bold'
+      }).setOrigin(0, 0.5));
+
+      const avBtn = this.add.text(1545, 105, 'Avatár', {
+        fontFamily: 'monospace', fontSize: '20px', color: '#90caf9',
+        backgroundColor: '#1d2335', padding: { x: 10, y: 4 }
+      }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+      avBtn.on('pointerdown', () => this.showAvatarPicker());
+      g.add(avBtn);
+
+      const outBtn = this.add.text(1660, 105, 'Kijelentkezés', {
+        fontFamily: 'monospace', fontSize: '20px', color: '#b9aed4',
+        backgroundColor: '#1d2335', padding: { x: 10, y: 4 }
+      }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+      outBtn.on('pointerdown', () => Supa.signOut());
+      g.add(outBtn);
+    } else {
+      const btn = this.add.text(1880, 60, '🔑 Google bejelentkezés', {
+        fontFamily: 'monospace', fontSize: '26px', color: '#ffffff', fontStyle: 'bold',
+        backgroundColor: '#1d2335', padding: { x: 18, y: 10 }
+      }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setBackgroundColor('#2a3350'));
+      btn.on('pointerout', () => btn.setBackgroundColor('#1d2335'));
+      btn.on('pointerdown', () => Supa.signIn());
+      this.authGroup.add(btn);
+    }
+  }
+
+  // ----- dobogó: top 3 gyors nézet -----
+  buildPodium() {
+    this.podiumGroup.removeAll(true);
+    const g = this.podiumGroup;
+    const cx = 1560, baseY = 760;
+
+    g.add(this.add.text(cx, 400, '🏆 RANGLISTA', {
+      fontFamily: 'monospace', fontSize: '36px', color: '#ffd54f', fontStyle: 'bold'
+    }).setOrigin(0.5));
+
+    Supa.fetchTop(3).then(rows => {
+      if (!this.scene.isActive('Menu') || this.podiumGroup !== g) return;
+
+      if (!rows.length) {
+        g.add(this.add.text(cx, 600, 'Még üres a ranglista —\nlégy te az első!', {
+          fontFamily: 'monospace', fontSize: '26px', color: '#b9aed4', align: 'center'
+        }).setOrigin(0.5));
+        return;
+      }
+
+      // oszlopok: középen az 1., balra a 2., jobbra a 3.
+      const slots = [
+        { rank: 1, x: cx, h: 170, color: 0xffd54f },
+        { rank: 2, x: cx - 175, h: 115, color: 0xcfd8dc },
+        { rank: 3, x: cx + 175, h: 80, color: 0xcd7f32 }
+      ];
+      slots.forEach(slot => {
+        const row = rows[slot.rank - 1];
+        if (!row) return;
+        const colTop = baseY - slot.h;
+        g.add(this.add.rectangle(slot.x, baseY, 150, slot.h, 0x1d2335)
+          .setOrigin(0.5, 1).setStrokeStyle(4, slot.color));
+        g.add(this.add.text(slot.x, baseY - slot.h / 2, String(slot.rank), {
+          fontFamily: 'monospace', fontSize: '52px', fontStyle: 'bold',
+          color: '#' + slot.color.toString(16).padStart(6, '0')
+        }).setOrigin(0.5));
+
+        const av = this.add.image(slot.x, colTop - 88, 'avatar_0').setDisplaySize(72, 72);
+        Avatars.ensure(this, row, (key) => {
+          if (av.active) av.setTexture(key).setDisplaySize(72, 72);
+        });
+        g.add(av);
+        g.add(this.add.text(slot.x, colTop - 38, row.display_name.slice(0, 10), {
+          fontFamily: 'monospace', fontSize: '22px', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5));
+        g.add(this.add.text(slot.x, colTop - 12, `⚔ ${row.kills}`, {
+          fontFamily: 'monospace', fontSize: '22px', color: '#e8e2f5'
+        }).setOrigin(0.5));
+      });
+
+      g.add(this.add.text(cx, baseY + 36, 'Kattints a teljes listáért', {
+        fontFamily: 'monospace', fontSize: '20px', color: '#b9aed4'
+      }).setOrigin(0.5));
+
+      // kattintható zóna az egész dobogón
+      const zone = this.add.zone(cx, 600, 560, 440).setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+      zone.on('pointerdown', () => this.openLeaderboard());
+      g.add(zone);
+    });
+  }
+
+  openLeaderboard() {
+    this.scene.pause();
+    this.scene.launch('Leaderboard');
+  }
+
+  // ----- avatár-választó panel -----
+  buildAvatarPicker() {
+    this.avatarGroup.removeAll(true);
+    const g = this.avatarGroup;
+    const p = Supa.profile;
+
+    g.add(this.add.rectangle(960, 540, 1200, 760, 0x10131f, 0.95)
+      .setStrokeStyle(6, 0x90caf9));
+    g.add(this.add.text(960, 240, 'AVATÁR VÁLASZTÁS', {
+      fontFamily: 'monospace', fontSize: '56px', color: '#ffffff', fontStyle: 'bold'
+    }).setOrigin(0.5));
+
+    const select = (type, idx) => {
+      Supa.setAvatar(type, idx).then(() => {
+        this.hideAvatarPicker();
+        this.buildAuth();
+        this.buildPodium();
+      });
+    };
+
+    // Google kép opció
+    if (p && p.google_avatar_url) {
+      const gx = 960, gy = 360;
+      const av = this.add.image(gx, gy, 'avatar_0').setDisplaySize(96, 96)
+        .setInteractive({ useHandCursor: true });
+      Avatars.ensure(this, { ...p, avatar_type: 'google', user_id: p.id }, (key) => {
+        if (av.active) av.setTexture(key).setDisplaySize(96, 96);
+      });
+      av.on('pointerdown', () => select('google', p.pixel_avatar));
+      g.add(av);
+      g.add(this.add.text(gx, gy + 70, 'Google profilkép', {
+        fontFamily: 'monospace', fontSize: '22px', color: '#b9aed4'
+      }).setOrigin(0.5));
+    }
+
+    // 10 pixel-ninja, 5×2 rács
+    for (let i = 0; i < 10; i++) {
+      const x = 960 - 2 * 150 + (i % 5) * 150;
+      const y = 540 + Math.floor(i / 5) * 160;
+      const av = this.add.image(x, y, `avatar_${i}`).setDisplaySize(96, 96)
+        .setInteractive({ useHandCursor: true });
+      av.on('pointerover', () => av.setDisplaySize(110, 110));
+      av.on('pointerout', () => av.setDisplaySize(96, 96));
+      av.on('pointerdown', () => select('pixel', i));
+      g.add(av);
+    }
+
+    const back = this.add.text(960, 850, '← VISSZA (ESC)', {
+      fontFamily: 'monospace', fontSize: '32px', color: '#b9aed4',
+      backgroundColor: '#1d2335', padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    back.on('pointerdown', () => this.hideAvatarPicker());
+    g.add(back);
+  }
+
+  showAvatarPicker() {
+    this.view = 'avatar';
+    this.buildAvatarPicker();
+    this.avatarGroup.setVisible(true);
+    this.children.bringToTop(this.avatarGroup);
+  }
+
+  hideAvatarPicker() {
+    this.view = 'main';
+    this.avatarGroup.setVisible(false);
   }
 
   buildMain() {
@@ -148,6 +340,8 @@ class MenuScene extends Phaser.Scene {
     if (this.view === 'main') {
       if (Keys.codePressed('Enter')) this.startGame();
       if (Keys.codePressed('KeyC')) this.showControls();
+    } else if (this.view === 'avatar') {
+      if (Keys.codePressed('Escape')) this.hideAvatarPicker();
     } else {
       if (Keys.codePressed('Escape')) this.showMain();
       if (Keys.codePressed('KeyR') && !Keys.captureCb) {
